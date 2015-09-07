@@ -21,7 +21,7 @@ import sys
 import time
 
 # Define the supported boards for bootloading
-bsl_boards = ["openbase", "openrpi", "openusb"]
+bsl_boards = ["openbase", "openrpi", "openbbb", "openusb"]
 
 # Define the relative path to the project home
 openmote_bsl_path = "../../tools/openmote-bsl"
@@ -37,6 +37,42 @@ cc2538_bsl_name = "cc2538-bsl.py"
 cc2538_bsl_path = "cc2538-bsl"
 cc2538_bsl_path = os.path.join(openmote_bsl_path, cc2538_bsl_path, cc2538_bsl_name)
 cc2538_bsl_bin  = os.path.abspath(cc2538_bsl_path)
+
+class OpenBBB():
+    try:
+        import Adafruit_BBIO.GPIO as gpio
+    except:
+        logger.error("Adafruit_BBIO.GPIO module not installed.")
+        
+    cc2538_bsl_params = ['-p', '/dev/ttyO1', '-e', '-w', '-b', '115200']
+    
+    BSL   = "P9_25"
+    RESET = "P9_23"
+    
+    def __init__(self):
+        self.gpio.setup(self.BSL,   self.gpio.OUT)
+        self.gpio.setup(self.RESET, self.gpio.OUT)
+        
+    def run(self, bsl_file = None):
+        self.bsl_start()
+        self.bsl_flash(bsl_file = bsl_file)
+        self.bsl_stop()
+        
+    def bsl_start(self):
+        self.gpio.output(self.RESET, self.gpio.HIGH)
+        self.gpio.output(self.BSL,   self.gpio.HIGH)
+        self.gpio.output(self.RESET, self.gpio.LOW)
+        self.gpio.output(self.BSL,   self.gpio.LOW)
+        self.gpio.output(self.RESET, self.gpio.HIGH)
+            
+    def bsl_flash(self, bsl_file = None):
+        script = [cc2538_bsl_bin] + self.cc2538_bsl_params + [bsl_file]
+        process = subprocess.call(script, shell=False)
+
+    def bsl_stop(self):
+        self.gpio.output(self.RESET, self.gpio.LOW)
+        self.gpio.output(self.BSL,   self.gpio.HIGH)
+        self.gpio.output(self.RESET, self.gpio.HIGH)            
 
 class OpenBase():
     cc2538_bsl_params = ['-e', '-w', '-b', '115200']
@@ -59,7 +95,7 @@ class OpenBase():
     def bsl_stop(self):
         pass
 
-class OpenRPi():
+class OpenRPi():   
     try:
         import RPi.GPIO as gpio
     except:
@@ -74,10 +110,10 @@ class OpenRPi():
     LOW  = False
     
     def __init__(self):
-        gpio.setwarnings(False)
-        gpio.setmode(gpio.BCM)
-        gpio.setup(self.BSL, gpio.OUT)
-        gpio.setup(self.RESET, gpio.OUT)
+        self.gpio.setwarnings(False)
+        self.gpio.setmode(self.gpio.BCM)
+        self.gpio.setup(self.BSL,   self.gpio.OUT)
+        self.gpio.setup(self.RESET, self.gpio.OUT)
     
     def run(self):
         self.bsl_start()
@@ -85,20 +121,20 @@ class OpenRPi():
         self.bsl_stop()
         
     def bsl_start(self):
-        gpio.output(self.RESET, self.HIGH)
-        gpio.output(self.BSL,   self.HIGH)
-        gpio.output(self.RESET, self.LOW)
-        gpio.output(self.BSL,   self.LOW)
-        gpio.output(self.RESET, self.HIGH)
+        self.gpio.output(self.RESET, self.HIGH)
+        self.gpio.output(self.BSL,   self.HIGH)
+        self.gpio.output(self.RESET, self.LOW)
+        self.gpio.output(self.BSL,   self.LOW)
+        self.gpio.output(self.RESET, self.HIGH)
             
-    def bsl_flash(self):
+    def bsl_flash(self, bsl_file = None):
         script = [os.path.join(cc2538_bsl_path, cc2538_bsl_name), self.cc2538_bsl_params]
         process = subprocess.call(script, shell=False)
 
     def bsl_stop(self):
-        gpio.output(self.RESET, self.LOW)
-        gpio.output(self.BSL,   self.HIGH)
-        gpio.output(self.RESET, self.HIGH)
+        self.gpio.output(self.RESET, self.LOW)
+        self.gpio.output(self.BSL,   self.HIGH)
+        self.gpio.output(self.RESET, self.HIGH)
             
 class OpenUsb():
     cc2538_bsl_params = ['-e', '-w', '-b', '115200', '--bsl']
@@ -154,6 +190,8 @@ def main(argv):
     bsl_file   = sys.argv[1]
     other_args = sys.argv[2:]
     config     = parse_config(default_config, other_args)
+    print bsl_file
+    print other_args
     
     if config['bsl_board'] == "openbase":
         bsl = OpenBase()
@@ -161,6 +199,8 @@ def main(argv):
         bsl = OpenRPi()
     elif config['bsl_board'] == "openusb":
         bsl = OpenUsb()
+    elif config['bsl_board'] == "openbbb":
+        bsl = OpenBBB()
     else:
         assert False, logger.error("Unknown board, please check the bsl_boards variable.")
     

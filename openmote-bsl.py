@@ -190,8 +190,6 @@ def main(argv):
     bsl_file   = sys.argv[1]
     other_args = sys.argv[2:]
     config     = parse_config(default_config, other_args)
-    print bsl_file
-    print other_args
     
     if config['bsl_board'] == "openbase":
         bsl = OpenBase()
